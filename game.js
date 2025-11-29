@@ -96,10 +96,6 @@ Object.values(images).forEach((img) => {
     };
 });
 
-// Background animation
-let bgY = 0;
-const bgSpeed = 0.5;
-
 // Game state
 let gameRunning = false;
 let score = 0;
@@ -534,8 +530,8 @@ function drawStarsBackground() {
     
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 100; i++) {
-        const x = (i * 123.456 + bgY * 0.1) % canvas.width;
-        const y = (i * 789.012 + bgY * 0.2) % canvas.height;
+        const x = (i * 123.456) % canvas.width;
+        const y = (i * 789.012) % canvas.height;
         const size = (i % 3) * 0.4 + 0.4;
         ctx.globalAlpha = 0.3 + (i % 10) * 0.06;
         ctx.fillRect(x, y, size, size);
@@ -545,12 +541,9 @@ function drawStarsBackground() {
 
 function drawBackground() {
     if (backgroundLoaded && images.background.complete && images.background.naturalHeight !== 0) {
-        bgY += bgSpeed;
-        if (bgY >= canvas.height) bgY = 0;
-        
         try {
-            ctx.drawImage(images.background, 0, bgY - canvas.height, canvas.width, canvas.height);
-            ctx.drawImage(images.background, 0, bgY, canvas.width, canvas.height);
+            // Draw static background - no scrolling
+            ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
         } catch(e) {
             drawStarsBackground();
         }
@@ -709,7 +702,6 @@ function restartGame() {
     boss = null;
     bossSpawned = false;
     gameRunning = true;
-    bgY = 0;
     
     updateHUD();
     document.getElementById('rapid-fire-indicator').style.display = 'none';

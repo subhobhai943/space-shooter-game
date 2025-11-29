@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Space Shooter Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -24,9 +26,26 @@
             <p>Final Score: <span id="final-score">0</span></p>
             <button id="restart-btn">Restart Game</button>
         </div>
+        
+        <!-- Mobile Controls -->
+        <div id="mobile-controls" class="mobile-controls" style="display: none;">
+            <!-- Virtual Joystick -->
+            <div id="joystick-container" class="joystick-container">
+                <div id="joystick-base" class="joystick-base">
+                    <div id="joystick-stick" class="joystick-stick"></div>
+                </div>
+            </div>
+            
+            <!-- Fire Button -->
+            <div id="fire-button" class="fire-button">
+                <span>🔫</span>
+            </div>
+        </div>
+        
         <div class="instructions">
             <h3>Controls:</h3>
-            <p>WASD - Move | Mouse - Aim | Click - Shoot</p>
+            <p id="desktop-controls">WASD - Move | Mouse - Aim | Click - Shoot</p>
+            <p id="mobile-controls-text" style="display: none;">Joystick - Move | Fire Button - Auto Shoot</p>
         </div>
     </div>
     <script src="game.js"></script>

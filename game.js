@@ -2,8 +2,19 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-canvas.width = 1200;
-canvas.height = 800;
+// Detect mobile device
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                 ('ontouchstart' in window) || 
+                 (navigator.maxTouchPoints > 0);
+
+// Set canvas size based on device
+if (isMobile) {
+    canvas.width = Math.min(window.innerWidth, 800);
+    canvas.height = Math.min(window.innerHeight, 600);
+} else {
+    canvas.width = 1200;
+    canvas.height = 800;
+}
 
 // Game state
 let gameRunning = true;
@@ -13,6 +24,11 @@ let mouseX = canvas.width / 2;
 let mouseY = canvas.height / 2;
 let mouseDown = false;
 
+// Mobile controls state
+let joystickActive = false;
+let joystickDelta = { x: 0, y: 0 };
+let fireButtonPressed = false;
+
 // Player
 const player = {
     x: canvas.width / 2,
@@ -21,7 +37,7 @@ const player = {
     health: 100,
     maxHealth: 100,
     angle: 0,
-    speed: 5,
+    speed: isMobile ? 4 : 5,
     fireRate: 250,
     lastShot: 0,
     shielded: false,
@@ -57,20 +73,115 @@ const POWERUP_TYPES = {
 let enemySpawnTimer = 0;
 let powerUpSpawnTimer = 0;
 
-// Event listeners
-document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
-document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+// Setup mobile controls if on mobile
+if (isMobile) {
+    document.getElementById('mobile-controls').style.display = 'block';
+    document.getElementById('desktop-controls').style.display = 'none';
+    document.getElementById('mobile-controls-text').style.display = 'block';
+    canvas.style.cursor = 'default';
+    setupMobileControls();
+} else {
+    // Desktop event listeners
+    document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
-canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-});
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+    });
 
-canvas.addEventListener('mousedown', () => mouseDown = true);
-canvas.addEventListener('mouseup', () => mouseDown = false);
+    canvas.addEventListener('mousedown', () => mouseDown = true);
+    canvas.addEventListener('mouseup', () => mouseDown = false);
+}
 
 document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+// Mobile controls setup
+function setupMobileControls() {
+    const joystickBase = document.getElementById('joystick-base');
+    const joystickStick = document.getElementById('joystick-stick');
+    const fireButton = document.getElementById('fire-button');
+    
+    let joystickTouchId = null;
+    const maxDistance = 35;
+    
+    // Joystick touch handlers
+    joystickBase.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (joystickTouchId === null && e.touches.length > 0) {
+            joystickTouchId = e.touches[0].identifier;
+            joystickActive = true;
+            handleJoystickMove(e.touches[0]);
+        }
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (joystickTouchId !== null) {
+            for (let touch of e.touches) {
+                if (touch.identifier === joystickTouchId) {
+                    e.preventDefault();
+                    handleJoystickMove(touch);
+                    break;
+                }
+            }
+        }
+    });
+    
+    document.addEventListener('touchend', (e) => {
+        for (let touch of e.changedTouches) {
+            if (touch.identifier === joystickTouchId) {
+                joystickTouchId = null;
+                joystickActive = false;
+                joystickDelta = { x: 0, y: 0 };
+                joystickStick.style.transform = 'translate(0px, 0px)';
+                break;
+            }
+        }
+    });
+    
+    function handleJoystickMove(touch) {
+        const rect = joystickBase.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let deltaX = touch.clientX - centerX;
+        let deltaY = touch.clientY - centerY;
+        
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance > maxDistance) {
+            const angle = Math.atan2(deltaY, deltaX);
+            deltaX = Math.cos(angle) * maxDistance;
+            deltaY = Math.sin(angle) * maxDistance;
+        }
+        
+        joystickStick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        joystickDelta = {
+            x: deltaX / maxDistance,
+            y: deltaY / maxDistance
+        };
+    }
+    
+    // Fire button handlers
+    fireButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        fireButtonPressed = true;
+        fireButton.classList.add('firing');
+    });
+    
+    fireButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        fireButtonPressed = false;
+        fireButton.classList.remove('firing');
+    });
+    
+    fireButton.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        fireButtonPressed = false;
+        fireButton.classList.remove('firing');
+    });
+}
 
 // Utility functions
 function distance(x1, y1, x2, y2) {
@@ -322,22 +433,50 @@ function spawnPowerUp(x = null, y = null) {
 
 // Update player
 function updatePlayer() {
-    // Movement
-    if (keys['w']) player.y -= player.speed;
-    if (keys['s']) player.y += player.speed;
-    if (keys['a']) player.x -= player.speed;
-    if (keys['d']) player.x += player.speed;
+    // Movement - Desktop or Mobile
+    if (isMobile && joystickActive) {
+        // Mobile joystick control
+        player.x += joystickDelta.x * player.speed;
+        player.y += joystickDelta.y * player.speed;
+        
+        // Update aim direction based on movement or nearest enemy
+        if (Math.abs(joystickDelta.x) > 0.1 || Math.abs(joystickDelta.y) > 0.1) {
+            player.angle = Math.atan2(joystickDelta.y, joystickDelta.x);
+        } else if (enemies.length > 0) {
+            // Auto-aim at nearest enemy when not moving
+            let nearestEnemy = enemies[0];
+            let minDist = distance(player.x, player.y, nearestEnemy.x, nearestEnemy.y);
+            
+            for (let enemy of enemies) {
+                const dist = distance(player.x, player.y, enemy.x, enemy.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestEnemy = enemy;
+                }
+            }
+            
+            player.angle = Math.atan2(nearestEnemy.y - player.y, nearestEnemy.x - player.x);
+        }
+    } else {
+        // Desktop keyboard control
+        if (keys['w']) player.y -= player.speed;
+        if (keys['s']) player.y += player.speed;
+        if (keys['a']) player.x -= player.speed;
+        if (keys['d']) player.x += player.speed;
+        
+        // Aim at mouse
+        player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    }
 
     // Keep player in bounds
     player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
     player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
-    // Aim at mouse
-    player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-
-    // Shoot
+    // Shoot - Desktop click or Mobile fire button
+    const shouldShoot = isMobile ? fireButtonPressed : mouseDown;
     const currentFireRate = player.rapidFire ? player.fireRate / 2 : player.fireRate;
-    if (mouseDown && Date.now() - player.lastShot > currentFireRate) {
+    
+    if (shouldShoot && Date.now() - player.lastShot > currentFireRate) {
         bullets.push(new Bullet(player.x, player.y, player.angle));
         player.lastShot = Date.now();
     }

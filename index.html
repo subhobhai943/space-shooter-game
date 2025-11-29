@@ -5,49 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Space Shooter Game</title>
+    <title>Space Shooter | Handheld Console</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-container">
-        <div class="hud">
-            <div class="hud-left">
-                <div class="stat">Health: <span id="health">100</span></div>
-                <div class="stat">Score: <span id="score">0</span></div>
+    <div class="handheld-console">
+        <!-- Top Screen Section -->
+        <div class="screen-section">
+            <div class="screen-bezel">
+                <div class="screen-container">
+                    <!-- HUD -->
+                    <div class="hud">
+                        <div class="hud-left">
+                            <div class="stat">HP: <span id="health">100</span></div>
+                            <div class="stat">Score: <span id="score">0</span></div>
+                        </div>
+                        <div class="hud-right">
+                            <div class="stat power-up" id="rapid-fire-indicator" style="display: none;">🔥</div>
+                            <div class="stat power-up" id="shield-indicator" style="display: none;">🛡️</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Game Canvas -->
+                    <canvas id="gameCanvas"></canvas>
+                    
+                    <!-- Game Over Screen -->
+                    <div id="game-over" class="game-over" style="display: none;">
+                        <h1>GAME OVER</h1>
+                        <p>Score: <span id="final-score">0</span></p>
+                        <button id="restart-btn" class="console-btn">RESTART</button>
+                    </div>
+                </div>
+                <div class="screen-label">SPACE SHOOTER</div>
             </div>
-            <div class="hud-right">
-                <div class="stat power-up" id="rapid-fire-indicator" style="display: none;">🔥 Rapid Fire</div>
-                <div class="stat power-up" id="shield-indicator" style="display: none;">🛡️ Shield</div>
-            </div>
-        </div>
-        <canvas id="gameCanvas"></canvas>
-        <div id="game-over" class="game-over" style="display: none;">
-            <h1>Game Over!</h1>
-            <p>Final Score: <span id="final-score">0</span></p>
-            <button id="restart-btn">Restart Game</button>
         </div>
         
-        <!-- Mobile Controls -->
-        <div id="mobile-controls" class="mobile-controls" style="display: none;">
-            <!-- Virtual Joystick -->
-            <div id="joystick-container" class="joystick-container">
-                <div id="joystick-base" class="joystick-base">
-                    <div id="joystick-stick" class="joystick-stick"></div>
+        <!-- Bottom Controls Section -->
+        <div class="controls-section">
+            <div class="console-info">
+                <div class="power-indicator">
+                    <span class="led"></span> POWER
+                </div>
+                <div class="sound-toggle">
+                    <button id="sound-btn" class="sound-btn">🔊</button>
                 </div>
             </div>
             
-            <!-- Fire Button -->
-            <div id="fire-button" class="fire-button">
-                <span>🔫</span>
+            <!-- Mobile D-Pad and Buttons -->
+            <div id="mobile-controls" class="console-controls" style="display: none;">
+                <!-- Left Side: D-Pad -->
+                <div class="dpad-container">
+                    <div class="dpad">
+                        <div class="dpad-center"></div>
+                        <button class="dpad-btn dpad-up" id="btn-up">▲</button>
+                        <button class="dpad-btn dpad-right" id="btn-right">▶</button>
+                        <button class="dpad-btn dpad-down" id="btn-down">▼</button>
+                        <button class="dpad-btn dpad-left" id="btn-left">◀</button>
+                    </div>
+                    <div class="dpad-label">D-PAD</div>
+                </div>
+                
+                <!-- Right Side: Action Buttons -->
+                <div class="action-buttons">
+                    <div class="button-group">
+                        <button class="action-btn btn-a" id="btn-fire">A</button>
+                        <button class="action-btn btn-b" id="btn-boost">B</button>
+                    </div>
+                    <div class="buttons-label">ACTION</div>
+                </div>
+            </div>
+            
+            <!-- Desktop Instructions -->
+            <div id="desktop-instructions" class="desktop-instructions">
+                <div class="instruction-row">
+                    <span class="key">W A S D</span>
+                    <span>Move</span>
+                </div>
+                <div class="instruction-row">
+                    <span class="key">MOUSE</span>
+                    <span>Aim & Fire</span>
+                </div>
+                <div class="instruction-row">
+                    <span class="key">SPACE</span>
+                    <span>Restart</span>
+                </div>
             </div>
         </div>
         
-        <div class="instructions">
-            <h3>Controls:</h3>
-            <p id="desktop-controls">WASD - Move | Mouse - Aim | Click - Shoot</p>
-            <p id="mobile-controls-text" style="display: none;">Joystick - Move | Fire Button - Auto Shoot</p>
+        <!-- Console Branding -->
+        <div class="console-branding">
+            <div class="brand-text">RETRO GAMING SYSTEM</div>
+            <div class="serial">MODEL: RSS-2025</div>
         </div>
     </div>
+    
     <script src="game.js"></script>
 </body>
 </html>

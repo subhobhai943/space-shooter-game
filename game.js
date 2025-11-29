@@ -25,6 +25,7 @@ sounds.powerup.volume = 0.5;
 
 // Sound toggle
 let soundEnabled = true;
+let soundInitialized = false;
 const soundBtn = document.getElementById('sound-btn');
 
 soundBtn.addEventListener('click', () => {
@@ -33,8 +34,21 @@ soundBtn.addEventListener('click', () => {
     soundBtn.classList.toggle('muted');
 });
 
+function initSound() {
+    if (!soundInitialized) {
+        // Initialize audio context on user interaction
+        Object.values(sounds).forEach(sound => {
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+            }).catch(e => console.log('Sound init:', e));
+        });
+        soundInitialized = true;
+    }
+}
+
 function playSound(sound) {
-    if (soundEnabled && sounds[sound]) {
+    if (soundEnabled && soundInitialized && sounds[sound]) {
         sounds[sound].currentTime = 0;
         sounds[sound].play().catch(e => console.log('Audio play failed:', e));
     }
@@ -83,7 +97,6 @@ Object.values(images).forEach((img) => {
         }
         if (imagesLoaded === totalImages) {
             assetsReady = true;
-            startGame();
         }
     };
     img.onerror = () => {
@@ -91,7 +104,6 @@ Object.values(images).forEach((img) => {
         imagesLoaded++;
         if (imagesLoaded === totalImages) {
             assetsReady = true;
-            startGame();
         }
     };
 });
@@ -158,6 +170,13 @@ let powerUpSpawnTimer = 0;
 document.getElementById('health').textContent = player.health;
 document.getElementById('score').textContent = score;
 
+// Start button
+document.getElementById('start-btn').addEventListener('click', () => {
+    initSound();
+    document.getElementById('start-screen').style.display = 'none';
+    startGame();
+});
+
 // Setup controls
 if (isMobile) {
     document.getElementById('mobile-controls').style.display = 'flex';
@@ -167,8 +186,14 @@ if (isMobile) {
     // Desktop event listeners
     document.addEventListener('keydown', (e) => {
         keys[e.key.toLowerCase()] = true;
-        if (e.key === ' ' && !gameRunning) {
-            restartGame();
+        if (e.key === ' ' && !gameRunning && assetsReady) {
+            if (document.getElementById('start-screen').style.display !== 'none') {
+                initSound();
+                document.getElementById('start-screen').style.display = 'none';
+                startGame();
+            } else {
+                restartGame();
+            }
         }
     });
     document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
@@ -542,7 +567,6 @@ function drawStarsBackground() {
 function drawBackground() {
     if (backgroundLoaded && images.background.complete && images.background.naturalHeight !== 0) {
         try {
-            // Draw static background - no scrolling
             ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
         } catch(e) {
             drawStarsBackground();
@@ -718,7 +742,17 @@ function startGame() {
     }
 }
 
-ctx.fillStyle = '#0f0';
-ctx.font = '16px Courier New';
-ctx.textAlign = 'center';
-ctx.fillText('LOADING...', canvas.width / 2, canvas.height / 2);
+// Show loading until assets ready
+const loadingInterval = setInterval(() => {
+    if (assetsReady) {
+        clearInterval(loadingInterval);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#0f0';
+        ctx.font = '16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('LOADING...', canvas.width / 2, canvas.height / 2);
+    }
+}, 100);

@@ -16,8 +16,64 @@ if (isMobile) {
     canvas.height = 800;
 }
 
+// Image assets
+const images = {
+    player: new Image(),
+    enemyBasic: new Image(),
+    enemyShooter: new Image(),
+    boss: new Image(),
+    bulletPlayer: new Image(),
+    bulletEnemy: new Image(),
+    bulletBoss: new Image(),
+    powerupHealth: new Image(),
+    powerupRapid: new Image(),
+    powerupShield: new Image(),
+    background: new Image()
+};
+
+// Load all images
+images.player.src = 'assets/images/player.png';
+images.enemyBasic.src = 'assets/images/enemy-basic.png';
+images.enemyShooter.src = 'assets/images/enemy-shooter.png';
+images.boss.src = 'assets/images/boss.png';
+images.bulletPlayer.src = 'assets/images/bullet-player.png';
+images.bulletEnemy.src = 'assets/images/bullet-enemy.png';
+images.bulletBoss.src = 'assets/images/bullet-boss.png';
+images.powerupHealth.src = 'assets/images/powerup-health.png';
+images.powerupRapid.src = 'assets/images/powerup-rapid.png';
+images.powerupShield.src = 'assets/images/powerup-shield.png';
+images.background.src = 'assets/images/background.png';
+
+// Track loaded images
+let imagesLoaded = 0;
+let totalImages = Object.keys(images).length;
+let assetsReady = false;
+
+// Image loading handler
+Object.values(images).forEach(img => {
+    img.onload = () => {
+        imagesLoaded++;
+        if (imagesLoaded === totalImages) {
+            assetsReady = true;
+            startGame();
+        }
+    };
+    img.onerror = () => {
+        console.warn('Failed to load image:', img.src);
+        imagesLoaded++;
+        if (imagesLoaded === totalImages) {
+            assetsReady = true;
+            startGame();
+        }
+    };
+});
+
+// Background animation
+let bgY = 0;
+const bgSpeed = 0.5;
+
 // Game state
-let gameRunning = true;
+let gameRunning = false;
 let score = 0;
 let keys = {};
 let mouseX = canvas.width / 2;
@@ -33,7 +89,9 @@ let fireButtonPressed = false;
 const player = {
     x: canvas.width / 2,
     y: canvas.height / 2,
-    radius: 15,
+    width: 40,
+    height: 40,
+    radius: 20,
     health: 100,
     maxHealth: 100,
     angle: 0,
@@ -57,16 +115,16 @@ let bossSpawned = false;
 
 // Enemy types
 const ENEMY_TYPES = {
-    BASIC: { health: 3, color: '#4a90e2', speed: 2, fireRate: 0, points: 10 },
-    SHOOTER: { health: 5, color: '#e24a4a', speed: 1.5, fireRate: 2000, points: 25 },
-    BOSS: { health: 50, color: '#9b4ae2', speed: 1, fireRate: 1500, points: 200 }
+    BASIC: { health: 3, color: '#4a90e2', speed: 2, fireRate: 0, points: 10, image: 'enemyBasic', width: 35, height: 35 },
+    SHOOTER: { health: 5, color: '#e24a4a', speed: 1.5, fireRate: 2000, points: 25, image: 'enemyShooter', width: 35, height: 35 },
+    BOSS: { health: 50, color: '#9b4ae2', speed: 1, fireRate: 1500, points: 200, image: 'boss', width: 80, height: 80 }
 };
 
 // Power-up types
 const POWERUP_TYPES = {
-    HEALTH: { color: '#4CAF50', size: 10 },
-    RAPID_FIRE: { color: '#FF9800', size: 10 },
-    SHIELD: { color: '#2196F3', size: 10 }
+    HEALTH: { color: '#4CAF50', size: 25, image: 'powerupHealth' },
+    RAPID_FIRE: { color: '#FF9800', size: 25, image: 'powerupRapid' },
+    SHIELD: { color: '#2196F3', size: 25, image: 'powerupShield' }
 };
 
 // Spawn timers
@@ -194,15 +252,18 @@ function randomRange(min, max) {
 
 // Bullet class
 class Bullet {
-    constructor(x, y, angle, speed = 10, damage = 1, isEnemy = false) {
+    constructor(x, y, angle, speed = 10, damage = 1, isEnemy = false, isBoss = false) {
         this.x = x;
         this.y = y;
         this.angle = angle;
         this.speed = speed;
-        this.radius = isEnemy ? 5 : 4;
+        this.width = isBoss ? 16 : (isEnemy ? 12 : 10);
+        this.height = isBoss ? 16 : (isEnemy ? 12 : 10);
+        this.radius = this.width / 2;
         this.damage = damage;
         this.isEnemy = isEnemy;
-        this.color = isEnemy ? '#ff4444' : '#ffff00';
+        this.isBoss = isBoss;
+        this.image = isBoss ? images.bulletBoss : (isEnemy ? images.bulletEnemy : images.bulletPlayer);
     }
 
     update() {
@@ -211,20 +272,17 @@ class Bullet {
     }
 
     draw() {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Glow effect
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        if (this.image.complete && this.image.naturalHeight !== 0) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+            ctx.restore();
+        }
     }
 
     isOffScreen() {
-        return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+        return this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50;
     }
 }
 
@@ -234,7 +292,9 @@ class Enemy {
         this.type = type;
         this.x = x;
         this.y = y;
-        this.radius = type === ENEMY_TYPES.BOSS ? 30 : 12;
+        this.width = type.width;
+        this.height = type.height;
+        this.radius = type.width / 2;
         this.health = type.health;
         this.maxHealth = type.health;
         this.speed = type.speed;
@@ -243,6 +303,7 @@ class Enemy {
         this.fireRate = type.fireRate;
         this.color = type.color;
         this.points = type.points;
+        this.image = images[type.image];
     }
 
     update() {
@@ -271,40 +332,33 @@ class Enemy {
             // Boss shoots in multiple directions
             for (let i = 0; i < 8; i++) {
                 const angle = (Math.PI * 2 / 8) * i;
-                enemyBullets.push(new Bullet(this.x, this.y, angle, 6, 25, true));
+                enemyBullets.push(new Bullet(this.x, this.y, angle, 6, 25, true, true));
             }
         } else {
-            enemyBullets.push(new Bullet(this.x, this.y, this.angle, 7, 10, true));
+            enemyBullets.push(new Bullet(this.x, this.y, this.angle, 7, 10, true, false));
         }
     }
 
     draw() {
-        // Draw enemy ship
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-        
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.moveTo(this.radius, 0);
-        ctx.lineTo(-this.radius, this.radius * 0.6);
-        ctx.lineTo(-this.radius * 0.6, 0);
-        ctx.lineTo(-this.radius, -this.radius * 0.6);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.restore();
+        // Draw enemy sprite
+        if (this.image.complete && this.image.naturalHeight !== 0) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle + Math.PI / 2);
+            ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+            ctx.restore();
+        }
 
         // Draw health bar
-        const barWidth = this.radius * 2;
+        const barWidth = this.width;
         const barHeight = 4;
         const healthPercent = this.health / this.maxHealth;
         
         ctx.fillStyle = '#333';
-        ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth, barHeight);
+        ctx.fillRect(this.x - barWidth / 2, this.y - this.height / 2 - 10, barWidth, barHeight);
         
         ctx.fillStyle = healthPercent > 0.5 ? '#4CAF50' : healthPercent > 0.25 ? '#FFC107' : '#F44336';
-        ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth * healthPercent, barHeight);
+        ctx.fillRect(this.x - barWidth / 2, this.y - this.height / 2 - 10, barWidth * healthPercent, barHeight);
     }
 
     hit(damage) {
@@ -322,24 +376,27 @@ class PowerUp {
         this.size = type.size;
         this.color = type.color;
         this.speed = 2;
+        this.image = images[type.image];
+        this.rotation = 0;
     }
 
     update() {
         this.y += this.speed;
+        this.rotation += 0.05;
     }
 
     draw() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-        
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-        ctx.shadowBlur = 0;
+        if (this.image.complete && this.image.naturalHeight !== 0) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+            ctx.restore();
+        }
     }
 
     isOffScreen() {
-        return this.y > canvas.height + 20;
+        return this.y > canvas.height + 50;
     }
 }
 
@@ -391,18 +448,18 @@ function spawnEnemy() {
     switch(side) {
         case 0: // Top
             x = randomRange(0, canvas.width);
-            y = -20;
+            y = -40;
             break;
         case 1: // Right
-            x = canvas.width + 20;
+            x = canvas.width + 40;
             y = randomRange(0, canvas.height);
             break;
         case 2: // Bottom
             x = randomRange(0, canvas.width);
-            y = canvas.height + 20;
+            y = canvas.height + 40;
             break;
         case 3: // Left
-            x = -20;
+            x = -40;
             y = randomRange(0, canvas.height);
             break;
     }
@@ -413,7 +470,7 @@ function spawnEnemy() {
 
 // Spawn boss
 function spawnBoss() {
-    boss = new Enemy(ENEMY_TYPES.BOSS, canvas.width / 2, -50);
+    boss = new Enemy(ENEMY_TYPES.BOSS, canvas.width / 2, -80);
     enemies.push(boss);
     bossSpawned = true;
 }
@@ -477,7 +534,7 @@ function updatePlayer() {
     const currentFireRate = player.rapidFire ? player.fireRate / 2 : player.fireRate;
     
     if (shouldShoot && Date.now() - player.lastShot > currentFireRate) {
-        bullets.push(new Bullet(player.x, player.y, player.angle));
+        bullets.push(new Bullet(player.x, player.y, player.angle, 12, 1, false, false));
         player.lastShot = Date.now();
     }
 
@@ -495,40 +552,44 @@ function updatePlayer() {
 
 // Draw player
 function drawPlayer() {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.rotate(player.angle);
-
     // Shield effect
     if (player.shielded) {
         ctx.strokeStyle = 'rgba(33, 150, 243, 0.5)';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(0, 0, player.radius + 10, 0, Math.PI * 2);
+        ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
         ctx.stroke();
     }
 
-    // Draw ship
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(player.radius, 0);
-    ctx.lineTo(-player.radius, player.radius * 0.7);
-    ctx.lineTo(-player.radius * 0.6, 0);
-    ctx.lineTo(-player.radius, -player.radius * 0.7);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
+    // Draw player sprite
+    if (images.player.complete && images.player.naturalHeight !== 0) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle + Math.PI / 2);
+        ctx.drawImage(images.player, -player.width / 2, -player.height / 2, player.width, player.height);
+        ctx.restore();
+    }
 }
 
-// Draw stars background
-function drawStars() {
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 100; i++) {
-        const x = (i * 123.456) % canvas.width;
-        const y = (i * 789.012) % canvas.height;
-        const size = (i % 3) * 0.5 + 0.5;
-        ctx.fillRect(x, y, size, size);
+// Draw scrolling background
+function drawBackground() {
+    if (images.background.complete && images.background.naturalHeight !== 0) {
+        // Calculate how many times to tile the background
+        const bgWidth = canvas.width;
+        const bgHeight = canvas.height;
+        
+        // Draw background tiles with scrolling effect
+        bgY += bgSpeed;
+        if (bgY >= bgHeight) {
+            bgY = 0;
+        }
+        
+        ctx.drawImage(images.background, 0, bgY - bgHeight, bgWidth, bgHeight);
+        ctx.drawImage(images.background, 0, bgY, bgWidth, bgHeight);
+    } else {
+        // Fallback gradient background
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 }
 
@@ -536,11 +597,8 @@ function drawStars() {
 function gameLoop() {
     if (!gameRunning) return;
 
-    // Clear canvas
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    drawStars();
+    // Draw background
+    drawBackground();
 
     // Update player
     updatePlayer();
@@ -638,7 +696,7 @@ function gameLoop() {
         }
 
         // Check collision with player
-        if (distance(powerUp.x, powerUp.y, player.x, player.y) < player.radius + powerUp.size) {
+        if (distance(powerUp.x, powerUp.y, player.x, player.y) < player.radius + powerUp.size / 2) {
             if (powerUp.type === POWERUP_TYPES.HEALTH) {
                 player.health = Math.min(player.maxHealth, player.health + 50);
             } else if (powerUp.type === POWERUP_TYPES.RAPID_FIRE) {
@@ -723,6 +781,7 @@ function restartGame() {
     boss = null;
     bossSpawned = false;
     gameRunning = true;
+    bgY = 0;
     
     // Update HUD
     updateHUD();
@@ -733,6 +792,17 @@ function restartGame() {
     gameLoop();
 }
 
-// Start game
-updateHUD();
-gameLoop();
+// Start game when assets are ready
+function startGame() {
+    if (!gameRunning && assetsReady) {
+        gameRunning = true;
+        updateHUD();
+        gameLoop();
+    }
+}
+
+// Show loading message
+ctx.fillStyle = '#ffffff';
+ctx.font = '24px Arial';
+ctx.textAlign = 'center';
+ctx.fillText('Loading assets...', canvas.width / 2, canvas.height / 2);

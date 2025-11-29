@@ -48,11 +48,15 @@ images.background.src = 'assets/images/background.png';
 let imagesLoaded = 0;
 let totalImages = Object.keys(images).length;
 let assetsReady = false;
+let backgroundLoaded = false;
 
 // Image loading handler
-Object.values(images).forEach(img => {
+Object.values(images).forEach((img, index) => {
     img.onload = () => {
         imagesLoaded++;
+        if (img === images.background) {
+            backgroundLoaded = true;
+        }
         if (imagesLoaded === totalImages) {
             assetsReady = true;
             startGame();
@@ -95,7 +99,7 @@ const player = {
     health: 100,
     maxHealth: 100,
     angle: 0,
-    speed: isMobile ? 4 : 5,
+    speed: isMobile ? 5 : 5,
     fireRate: 250,
     lastShot: 0,
     shielded: false,
@@ -131,6 +135,10 @@ const POWERUP_TYPES = {
 let enemySpawnTimer = 0;
 let powerUpSpawnTimer = 0;
 
+// Initialize HUD immediately
+document.getElementById('health').textContent = player.health;
+document.getElementById('score').textContent = score;
+
 // Setup mobile controls if on mobile
 if (isMobile) {
     document.getElementById('mobile-controls').style.display = 'block';
@@ -162,7 +170,7 @@ function setupMobileControls() {
     const fireButton = document.getElementById('fire-button');
     
     let joystickTouchId = null;
-    const maxDistance = 35;
+    const maxDistance = 50; // Increased from 35 for better control
     
     // Joystick touch handlers
     joystickBase.addEventListener('touchstart', (e) => {
@@ -172,7 +180,7 @@ function setupMobileControls() {
             joystickActive = true;
             handleJoystickMove(e.touches[0]);
         }
-    });
+    }, { passive: false });
     
     document.addEventListener('touchmove', (e) => {
         if (joystickTouchId !== null) {
@@ -184,7 +192,7 @@ function setupMobileControls() {
                 }
             }
         }
-    });
+    }, { passive: false });
     
     document.addEventListener('touchend', (e) => {
         for (let touch of e.changedTouches) {
@@ -226,19 +234,19 @@ function setupMobileControls() {
         e.preventDefault();
         fireButtonPressed = true;
         fireButton.classList.add('firing');
-    });
+    }, { passive: false });
     
     fireButton.addEventListener('touchend', (e) => {
         e.preventDefault();
         fireButtonPressed = false;
         fireButton.classList.remove('firing');
-    });
+    }, { passive: false });
     
     fireButton.addEventListener('touchcancel', (e) => {
         e.preventDefault();
         fireButtonPressed = false;
         fireButton.classList.remove('firing');
-    });
+    }, { passive: false });
 }
 
 // Utility functions
@@ -492,9 +500,9 @@ function spawnPowerUp(x = null, y = null) {
 function updatePlayer() {
     // Movement - Desktop or Mobile
     if (isMobile && joystickActive) {
-        // Mobile joystick control
-        player.x += joystickDelta.x * player.speed;
-        player.y += joystickDelta.y * player.speed;
+        // Mobile joystick control with improved sensitivity
+        player.x += joystickDelta.x * player.speed * 1.2;
+        player.y += joystickDelta.y * player.speed * 1.2;
         
         // Update aim direction based on movement or nearest enemy
         if (Math.abs(joystickDelta.x) > 0.1 || Math.abs(joystickDelta.y) > 0.1) {
@@ -571,9 +579,26 @@ function drawPlayer() {
     }
 }
 
+// Draw stars background (fallback)
+function drawStarsBackground() {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw animated stars
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 150; i++) {
+        const x = (i * 123.456 + bgY * 0.1) % canvas.width;
+        const y = (i * 789.012 + bgY * 0.2) % canvas.height;
+        const size = (i % 3) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.3 + (i % 10) * 0.07;
+        ctx.fillRect(x, y, size, size);
+    }
+    ctx.globalAlpha = 1;
+}
+
 // Draw scrolling background
 function drawBackground() {
-    if (images.background.complete && images.background.naturalHeight !== 0) {
+    if (backgroundLoaded && images.background.complete && images.background.naturalHeight !== 0) {
         // Calculate how many times to tile the background
         const bgWidth = canvas.width;
         const bgHeight = canvas.height;
@@ -584,12 +609,16 @@ function drawBackground() {
             bgY = 0;
         }
         
-        ctx.drawImage(images.background, 0, bgY - bgHeight, bgWidth, bgHeight);
-        ctx.drawImage(images.background, 0, bgY, bgWidth, bgHeight);
+        try {
+            ctx.drawImage(images.background, 0, bgY - bgHeight, bgWidth, bgHeight);
+            ctx.drawImage(images.background, 0, bgY, bgWidth, bgHeight);
+        } catch(e) {
+            // If background fails to draw, use stars fallback
+            drawStarsBackground();
+        }
     } else {
-        // Fallback gradient background
-        ctx.fillStyle = '#0a0a1a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Fallback stars background
+        drawStarsBackground();
     }
 }
 
@@ -796,7 +825,6 @@ function restartGame() {
 function startGame() {
     if (!gameRunning && assetsReady) {
         gameRunning = true;
-        updateHUD();
         gameLoop();
     }
 }

@@ -88,19 +88,8 @@ const images = {
     bulletBoss: new Image(),
     powerupHealth: new Image(),
     powerupRapid: new Image(),
-    powerupShield: new Image(),
-    background: new Image()
+    powerupShield: new Image()
 };
-
-// Load all images with timeout
-const fallbackTimeout = 3000;
-Object.keys(images).forEach(key => {
-    const img = images[key];
-    let timeoutId = setTimeout(() => {
-        img.src = '';
-    }, fallbackTimeout);
-    img.onload = () => clearTimeout(timeoutId);
-});
 
 images.player.src = 'assets/images/player.png';
 images.enemyBasic.src = 'assets/images/enemy-basic.png';
@@ -112,26 +101,22 @@ images.bulletBoss.src = 'assets/images/bullet-boss.png';
 images.powerupHealth.src = 'assets/images/powerup-health.png';
 images.powerupRapid.src = 'assets/images/powerup-rapid.png';
 images.powerupShield.src = 'assets/images/powerup-shield.png';
-images.background.src = 'assets/images/background.png';
 
 // Track loaded images
 let imagesLoaded = 0;
 let totalImages = Object.keys(images).length;
 let assetsReady = false;
-let backgroundLoaded = false;
 
 // Image loading handler
 Object.values(images).forEach((img) => {
     img.onload = () => {
         imagesLoaded++;
-        if (img === images.background) {
-            backgroundLoaded = true;
-        }
         if (imagesLoaded === totalImages) {
             assetsReady = true;
         }
     };
     img.onerror = () => {
+        console.warn('Failed to load image:', img.src);
         imagesLoaded++;
         if (imagesLoaded === totalImages) {
             assetsReady = true;
@@ -310,20 +295,11 @@ class Bullet {
     }
 
     draw() {
-        if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
+        if (this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle);
             ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
-            ctx.restore();
-        } else {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.angle);
-            ctx.fillStyle = this.isBoss ? '#9b4ae2' : (this.isEnemy ? '#e24a4a' : '#fff');
-            ctx.beginPath();
-            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-            ctx.fill();
             ctx.restore();
         }
     }
@@ -384,20 +360,11 @@ class Enemy {
     }
 
     draw() {
-        if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
+        if (this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle + Math.PI / 2);
             ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
-            ctx.restore();
-        } else {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.angle + Math.PI / 2);
-            ctx.fillStyle = this.color;
-            ctx.beginPath();
-            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-            ctx.fill();
             ctx.restore();
         }
 
@@ -437,20 +404,11 @@ class PowerUp {
     }
 
     draw() {
-        if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
+        if (this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.rotation);
             ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
-            ctx.restore();
-        } else {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation);
-            ctx.fillStyle = this.color;
-            ctx.beginPath();
-            ctx.arc(0, 0, this.size/2, 0, Math.PI * 2);
-            ctx.fill();
             ctx.restore();
         }
     }
@@ -594,23 +552,11 @@ function drawPlayer() {
         ctx.stroke();
     }
 
-    if (images.player.src && images.player.complete && images.player.naturalHeight !== 0) {
+    if (images.player.complete && images.player.naturalHeight !== 0) {
         ctx.save();
         ctx.translate(player.x, player.y);
         ctx.rotate(player.angle + Math.PI / 2);
         ctx.drawImage(images.player, -player.width / 2, -player.height / 2, player.width, player.height);
-        ctx.restore();
-    } else {
-        ctx.save();
-        ctx.translate(player.x, player.y);
-        ctx.rotate(player.angle + Math.PI / 2);
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(0, -player.radius);
-        ctx.lineTo(player.radius, player.radius);
-        ctx.lineTo(-player.radius, player.radius);
-        ctx.closePath();
-        ctx.fill();
         ctx.restore();
     }
 }
@@ -631,7 +577,6 @@ function drawStarsBackground() {
 }
 
 function drawBackground() {
-    // Always use fallback star background to avoid stretched image
     drawStarsBackground();
 }
 
@@ -805,10 +750,10 @@ function startGame() {
     }
 }
 
-// Show loading until assets ready (max 4s)
+// Show loading until assets ready (max 3s)
 let loadingCount = 0;
 const loadingInterval = setInterval(() => {
-    if (assetsReady || loadingCount > 40) {
+    if (assetsReady || loadingCount > 30) {
         clearInterval(loadingInterval);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         assetsReady = true;

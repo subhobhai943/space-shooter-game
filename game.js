@@ -15,13 +15,16 @@ canvas.height = 360;
 const sounds = {
     shoot: new Audio('assets/sounds/shoot.mp3'),
     explosion: new Audio('assets/sounds/explosion.mp3'),
-    powerup: new Audio('assets/sounds/powerup.mp3')
+    powerup: new Audio('assets/sounds/powerup.mp3'),
+    bossMusic: new Audio('assets/sounds/boss-music.mp3')
 };
 
 // Set sound volumes
 sounds.shoot.volume = 0.3;
 sounds.explosion.volume = 0.4;
 sounds.powerup.volume = 0.5;
+sounds.bossMusic.volume = 0.3;
+sounds.bossMusic.loop = true;
 
 // Sound toggle
 let soundEnabled = true;
@@ -32,6 +35,12 @@ soundBtn.addEventListener('click', () => {
     soundEnabled = !soundEnabled;
     soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
     soundBtn.classList.toggle('muted');
+    
+    if (!soundEnabled && sounds.bossMusic) {
+        sounds.bossMusic.pause();
+    } else if (soundEnabled && boss && sounds.bossMusic) {
+        sounds.bossMusic.play().catch(e => console.log('Boss music play failed:', e));
+    }
 });
 
 function initSound() {
@@ -54,6 +63,20 @@ function playSound(sound) {
     }
 }
 
+function playBossMusic() {
+    if (soundEnabled && soundInitialized && sounds.bossMusic) {
+        sounds.bossMusic.currentTime = 0;
+        sounds.bossMusic.play().catch(e => console.log('Boss music play failed:', e));
+    }
+}
+
+function stopBossMusic() {
+    if (sounds.bossMusic) {
+        sounds.bossMusic.pause();
+        sounds.bossMusic.currentTime = 0;
+    }
+}
+
 // Image assets
 const images = {
     player: new Image(),
@@ -69,8 +92,8 @@ const images = {
     background: new Image()
 };
 
-// Load all images, use fallback if not loaded in 2s
-const fallbackTimeout = 2000; // 2 seconds to load each image
+// Load all images with timeout
+const fallbackTimeout = 3000;
 Object.keys(images).forEach(key => {
     const img = images[key];
     let timeoutId = setTimeout(() => {
@@ -220,14 +243,12 @@ document.getElementById('restart-btn').addEventListener('click', restartGame);
 
 // Mobile controls setup
 function setupMobileControls() {
-    // D-Pad controls
     const btnUp = document.getElementById('btn-up');
     const btnDown = document.getElementById('btn-down');
     const btnLeft = document.getElementById('btn-left');
     const btnRight = document.getElementById('btn-right');
     const btnFire = document.getElementById('btn-fire');
     
-    // D-Pad event handlers
     function setDpad(direction, value) {
         return (e) => {
             e.preventDefault();
@@ -247,7 +268,6 @@ function setupMobileControls() {
     btnRight.addEventListener('touchstart', setDpad('right', true), { passive: false });
     btnRight.addEventListener('touchend', setDpad('right', false), { passive: false });
     
-    // Fire button
     btnFire.addEventListener('touchstart', (e) => {
         e.preventDefault();
         firePressed = true;
@@ -290,7 +310,6 @@ class Bullet {
     }
 
     draw() {
-        // Draw shape as fallback
         if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -365,7 +384,6 @@ class Enemy {
     }
 
     draw() {
-        // Draw shape as fallback
         if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -383,7 +401,6 @@ class Enemy {
             ctx.restore();
         }
 
-        // Health bar
         const barWidth = this.width;
         const barHeight = 3;
         const healthPercent = this.health / this.maxHealth;
@@ -420,7 +437,6 @@ class PowerUp {
     }
 
     draw() {
-        // Draw shape as fallback
         if (this.image.src && this.image.complete && this.image.naturalHeight !== 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -502,6 +518,7 @@ function spawnBoss() {
     boss = new Enemy(ENEMY_TYPES.BOSS, canvas.width / 2, -60);
     enemies.push(boss);
     bossSpawned = true;
+    playBossMusic();
 }
 
 function spawnPowerUp(x = null, y = null) {
@@ -517,14 +534,12 @@ function spawnPowerUp(x = null, y = null) {
 }
 
 function updatePlayer() {
-    // Movement
     if (isMobile) {
         if (dpadPressed.up) player.y -= player.speed;
         if (dpadPressed.down) player.y += player.speed;
         if (dpadPressed.left) player.x -= player.speed;
         if (dpadPressed.right) player.x += player.speed;
         
-        // Auto-aim at nearest enemy
         if (enemies.length > 0) {
             let nearestEnemy = enemies[0];
             let minDist = distance(player.x, player.y, nearestEnemy.x, nearestEnemy.y);
@@ -579,7 +594,6 @@ function drawPlayer() {
         ctx.stroke();
     }
 
-    // Draw shape as fallback
     if (images.player.src && images.player.complete && images.player.naturalHeight !== 0) {
         ctx.save();
         ctx.translate(player.x, player.y);
@@ -617,15 +631,8 @@ function drawStarsBackground() {
 }
 
 function drawBackground() {
-    if (backgroundLoaded && images.background.src && images.background.complete && images.background.naturalHeight !== 0) {
-        try {
-            ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
-        } catch(e) {
-            drawStarsBackground();
-        }
-    } else {
-        drawStarsBackground();
-    }
+    // Always use fallback star background to avoid stretched image
+    drawStarsBackground();
 }
 
 function gameLoop() {
@@ -678,6 +685,7 @@ function gameLoop() {
                     if (enemy === boss) {
                         boss = null;
                         bossSpawned = false;
+                        stopBossMusic();
                     }
                 }
                 bullets.splice(bIndex, 1);
@@ -695,6 +703,7 @@ function gameLoop() {
             if (enemy === boss) {
                 boss = null;
                 bossSpawned = false;
+                stopBossMusic();
             }
         }
     });
@@ -757,6 +766,7 @@ function updateHUD() {
 
 function gameOver() {
     gameRunning = false;
+    stopBossMusic();
     document.getElementById('final-score').textContent = score;
     document.getElementById('game-over').style.display = 'block';
 }
@@ -777,6 +787,7 @@ function restartGame() {
     score = 0;
     boss = null;
     bossSpawned = false;
+    stopBossMusic();
     gameRunning = true;
     
     updateHUD();
@@ -794,10 +805,10 @@ function startGame() {
     }
 }
 
-// Show loading until assets ready (max 4s). If still not ready, start fallback.
+// Show loading until assets ready (max 4s)
 let loadingCount = 0;
 const loadingInterval = setInterval(() => {
-    if (assetsReady || loadingCount > 40) { // 40 * 100ms = 4s
+    if (assetsReady || loadingCount > 40) {
         clearInterval(loadingInterval);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         assetsReady = true;

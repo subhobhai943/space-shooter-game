@@ -527,7 +527,12 @@ function updatePlayer() {
     const currentFireRate = player.rapidFire ? player.fireRate / 2 : player.fireRate;
     
     if (shouldShoot && Date.now() - player.lastShot > currentFireRate) {
-        bullets.push(new Bullet(player.x, player.y, player.angle, 10, 1, false, false));
+        // Calculate bullet spawn position at the tip of the ship
+        const tipOffset = 18; // Distance from center to ship tip
+        const bulletX = player.x + Math.cos(player.angle) * tipOffset;
+        const bulletY = player.y + Math.sin(player.angle) * tipOffset;
+        
+        bullets.push(new Bullet(bulletX, bulletY, player.angle, 10, 1, false, false));
         playSound('shoot');
         player.lastShot = Date.now();
     }
